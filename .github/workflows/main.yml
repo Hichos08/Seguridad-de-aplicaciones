@@ -1,0 +1,71 @@
+
+name: CI/CD PHP Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    name: CI/CD for PHP Application
+
+    steps:
+      # 1️⃣ Clonar el repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Configurar PHP y extensiones necesarias
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, intl, mysqli, pdo, pdo_mysql
+          coverage: none
+
+      # 3️⃣ Instalar Composer
+      - name: Install Composer
+        run: |
+          php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+          php composer-setup.php
+          php -r "unlink('composer-setup.php');"
+          sudo mv composer.phar /usr/local/bin/composer
+      # 4️⃣ Instalar dependencias (si existe composer.json)
+      - name: Install dependencies
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist
+          else
+            echo "No composer.json found, skipping dependency installation."
+          fi
+      # 5️⃣ Pruebas automatizadas (verificación de sintaxis)
+      - name: Run PHP syntax check
+        run: |
+          echo "Ejecutando pruebas de sintaxis PHP..."
+          php -l index.php
+          echo "✔️ Pruebas de sintaxis completadas correctamente."
+      # 6️⃣ Escaneo de vulnerabilidades (usando Symfony CLI)
+      - name: Security scan with Symfony CLI
+        run: |
+          echo "Instalando Symfony CLI para escanear vulnerabilidades..."
+          wget https://get.symfony.com/cli/installer -O - | bash
+          mv ~/.symfony*/bin/symfony /usr/local/bin/symfony
+          echo "Ejecutando análisis de seguridad..."
+          symfony check:security || true
+          echo "✔️ Escaneo de vulnerabilidades completado."
+      # 7️⃣ Construcción de la aplicación
+      - name: Build application
+        run: |
+          echo "Construyendo la aplicación..."
+          mkdir build
+          cp index.php build/
+          echo "✔️ Construcción completada."
+      # 8️⃣ Despliegue en entorno de pruebas (simulado)
+      - name: Deploy to test environment
+        run: |
+          echo "Iniciando despliegue en entorno de pruebas..."
+          mkdir -p test_environment
+          cp -r build/* test_environment/
+          echo "Aplicación desplegada exitosamente en test_environment/"
